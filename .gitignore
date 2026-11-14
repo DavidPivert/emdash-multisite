@@ -5,3 +5,6 @@ node_modules
 .env
 .env.*
 !.env.example
+
+# Local dev install of devDependencies; a library lockfile pins nothing consumers get
+pnpm-lock.yaml
