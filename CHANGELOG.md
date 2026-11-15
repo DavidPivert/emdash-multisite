@@ -15,6 +15,14 @@ contain breaking changes).
   embeds only the `console.*` messages as JSON for its client script. No visible change: the
   rendered text and HTML are the same. New self-check: `scripts/i18n.selfcheck.ts`.
 
+### Added
+- Shard pool plumbing (first step of #4): `SitesConfig.shards` lists extra D1 bindings, and
+  the runtime keeps one inner dialect per binding, built on first use, selected per site by
+  `shardOf`. No behaviour change: `shardOf` puts every site in the main database, so a
+  declared pool is never opened. A site mapped to a binding missing from `shards` fails
+  instead of falling back: that site's host answers 500 until the config or the site record is
+  fixed. New `scripts/shards.selfcheck.ts`.
+
 ### Fixed
 - Self-checks aligned with EmDash 1.4.0: dropped the dead taxonomy holder cache keys
   (`emdash:taxonomy-defs@2`, `emdash:taxonomy-names`, now the `:swr` variants), and the

@@ -151,6 +151,7 @@ That's the whole integration: install + three wires. No plugin entry, no EmDash 
 
 | `themes` | `Record<id, { name, description?, seed? }>` | Themes a new site can pick. Each `seed` is an EmDash seed JSON applied when the site is created. Omit for a single theme (the host's bundled seed). |
 | `defaultTheme` | `string` | Preselected in the wizard and used when none is requested. Defaults to the first theme. |
+| `shards` | `string[]` | Extra D1 binding names that can hold sites, declared in `wrangler.jsonc` ahead of demand. `d1()` only, and never the main binding. **Groundwork:** every site still lives in the main database until shard assignment lands, so setting this changes nothing yet. |
 
 Supported inner adapters: `d1({...})` (Cloudflare) and `sqlite({...})` (local/Node dev). Site ids
 are DNS labels: `^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$`. Unknown hostnames resolve to `primary`.

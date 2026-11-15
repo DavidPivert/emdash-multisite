@@ -42,6 +42,9 @@ Run the self-checks with Node ≥ 22.18 before you push. They are the project's 
 # Slug validation, org-response parsing, limits, reconcile, theme routing (no deps)
 node --no-warnings scripts/orgs.selfcheck.ts
 
+# The shard pool: config validation and per-binding routing (two SQLite files stand in for D1)
+node --no-warnings scripts/shards.selfcheck.ts
+
 # The edge-cache pure rules + purger behaviour
 node --no-warnings scripts/edge-cache.selfcheck.ts
 
