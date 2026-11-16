@@ -1,5 +1,6 @@
 /** Checks for the message catalog (src/i18n.ts): `node --no-warnings scripts/i18n.selfcheck.ts` */
 import { readdirSync, readFileSync } from "node:fs";
+import { consolePageHtml } from "../src/console-page.ts";
 import { escapeHtml, messageKeys, messagesFor, t, tHtml, tn, type MessageKey } from "../src/i18n.ts";
 let failed = 0;
 const check = (name: string, got: unknown, want: unknown) => {
@@ -23,6 +24,23 @@ const client = messagesFor("console.");
 check("messagesFor: only the prefix", Object.keys(client).every((k) => k.startsWith("console.")), true);
 check("messagesFor: the whole prefix", Object.keys(client).length, messageKeys().filter((k) => k.startsWith("console.")).length);
 check("messagesFor: nothing else from the catalog", Object.keys(client).some((k) => k.startsWith("account.") || k.startsWith("api.")), false);
+
+// ---- the console client's HTML helpers ----
+// Run the helpers exactly as the page ships them: pull their definitions out of the inline script.
+const page = consolePageHtml("list");
+const script = page.slice(page.lastIndexOf("<script>") + 8, page.lastIndexOf("</script>"));
+const helper = (name: string) => script.match(new RegExp(`^\\s*const ${name} = .*;$`, "m"))?.[0] ?? `throw new Error("no ${name}")`;
+const helpers = new Function("MSG", [..."esc fillMsg rawMsg escParams htm htmRaw".split(" ").map(helper), "return { htm, htmRaw };"].join("\n"))(
+	messagesFor("console."),
+) as { htm: (k: string, p?: Record<string, unknown>) => string; htmRaw: (k: string, p?: Record<string, unknown>) => string };
+const hostile = `<img src=x onerror="alert(1)">&`;
+check("client htm: params are escaped", helpers.htm("console.progress.title", { name: hostile }).includes(hostile), false);
+check("client htm: same text as tHtml for a plain name", helpers.htm("console.progress.title", { name: "Acme" }), t("console.progress.title", { name: "Acme" }));
+check("client htmRaw: params are inserted as they are", helpers.htmRaw("console.appearance.adds", { list: "<code>a</code>" }).includes("<code>a</code>"), true);
+// htm escapes on its own, so a caller that escapes too would double-escape; htmRaw is only for the <code> lists.
+const calls = [...script.matchAll(/\b(htm|htmRaw)\("[\w.]+", *(\{[^}]*\})\)/g)].map((m) => ({ fn: m[1], params: m[2]! }));
+check("client: htm params are never pre-escaped", calls.filter((c) => c.fn === "htm" && /\besc\(/.test(c.params)).map((c) => c.params), []);
+check("client: htmRaw params come only from list()", calls.filter((c) => c.fn === "htmRaw" && !/^\{ *\w+: list\([^()]*\) *\}$/.test(c.params)).map((c) => c.params), []);
 
 // ---- catalog shape ----
 const keys = messageKeys();

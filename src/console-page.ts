@@ -24,9 +24,14 @@ const CLIENT_JS = String.raw`
   const plural = new Intl.PluralRules(document.documentElement.lang || "en");
   const fillMsg = (text, p) => text.replace(/\{(\w+)\}/g, (m, n) => (p && Object.prototype.hasOwnProperty.call(p, n) ? String(p[n]) : m));
   const rawMsg = (k) => (MSG[k] == null ? k : MSG[k]);
-  // txt: plain text (textContent, confirm, alert). htm: HTML; the message is escaped, params must already be HTML.
+  // txt: plain text (textContent, confirm, alert).
+  // htm: HTML; the message and every param are escaped, like tHtml on the server. Pass raw values.
+  // htmRaw: HTML; the message is escaped, params are inserted as they are. Only for markup built
+  //   here from escaped parts (the <code> lists); never pass a value from the API or the user.
   const txt = (k, p) => fillMsg(rawMsg(k), p);
-  const htm = (k, p) => fillMsg(esc(rawMsg(k)), p);
+  const escParams = (p) => (p ? Object.fromEntries(Object.entries(p).map(([n, v]) => [n, esc(v)])) : p);
+  const htm = (k, p) => fillMsg(esc(rawMsg(k)), escParams(p));
+  const htmRaw = (k, p) => fillMsg(esc(rawMsg(k)), p);
   const txtn = (k, n, p) => txt(k + (plural.select(n) === "one" ? ".one" : ".other"), Object.assign({ count: n }, p));
   const known = (prefix, v) => (MSG[prefix + v] == null ? esc(v) : htm(prefix + v));
   const status = (s) => '<span class="pill ' + esc(s) + '">' + known("console.status.", s) + '</span>';
@@ -175,7 +180,7 @@ const CLIENT_JS = String.raw`
   };
 
   const progress = (slug, name) => {
-    root.innerHTML = '<h1>' + htm("console.progress.title", { name: esc(name) }) + '</h1>' +
+    root.innerHTML = '<h1>' + htm("console.progress.title", { name }) + '</h1>' +
       '<p class="muted" role="status" aria-live="polite" id="ps">' + htm("console.progress.duration") + '</p>';
     const ps = document.getElementById("ps");
     let tries = 0;
@@ -186,7 +191,7 @@ const CLIENT_JS = String.raw`
       if (st === "ready") {
         const me = (await getJson("/api/multisite/me")).body || { sites: [] };
         const s = me.sites.find((x) => x.slug === slug);
-        root.innerHTML = '<h1>' + htm("console.progress.ready", { name: esc(name) }) + '</h1>' +
+        root.innerHTML = '<h1>' + htm("console.progress.ready", { name }) + '</h1>' +
           '<div class="actions">' +
           (s && s.adminUrl ? '<a class="btn primary" href="' + esc(s.adminUrl) + '">' + htm("console.list.openAdmin") + '</a>' : '') +
           (s && s.url ? '<a class="btn" href="' + esc(s.url) + '">' + htm("console.list.openSite") + '</a>' : '') +
@@ -217,13 +222,13 @@ const CLIENT_JS = String.raw`
     const a = r.body;
     const list = (xs) => xs.map((x) => '<code>' + esc(x) + '</code>').join(", ");
     root.innerHTML =
-      '<h1>' + htm("console.appearance.title", { name: esc(a.name) }) + '</h1>' +
+      '<h1>' + htm("console.appearance.title", { name: a.name }) + '</h1>' +
       '<p class="muted">' + htm("console.appearance.intro") + '</p>' +
       '<form id="f"><fieldset class="themes"><legend>' + htm("console.wizard.theme") + '</legend>' + a.themes.map((t) =>
         '<label class="theme"><input type="radio" name="theme" value="' + esc(t.id) + '"' + (t.current ? " checked" : "") + '>' +
-        '<span><strong>' + (t.current ? htm("console.appearance.current", { name: esc(t.name) }) : esc(t.name)) + '</strong><small>' + esc(t.description) + '</small>' +
-        (!t.current && t.adds.length ? '<small>' + htm("console.appearance.adds", { list: list(t.adds) }) + '</small>' : '') +
-        (!t.current && t.hides.length ? '<small>' + htm("console.appearance.hides", { list: list(t.hides) }) + '</small>' : '') + '</span></label>').join("") + '</fieldset>' +
+        '<span><strong>' + (t.current ? htm("console.appearance.current", { name: t.name }) : esc(t.name)) + '</strong><small>' + esc(t.description) + '</small>' +
+        (!t.current && t.adds.length ? '<small>' + htmRaw("console.appearance.adds", { list: list(t.adds) }) + '</small>' : '') +
+        (!t.current && t.hides.length ? '<small>' + htmRaw("console.appearance.hides", { list: list(t.hides) }) + '</small>' : '') + '</span></label>').join("") + '</fieldset>' +
       '<label class="check"><input type="checkbox" id="sample"> ' + htm("console.appearance.sample") + '</label>' +
       '<p id="msg" class="muted" role="status" aria-live="polite"></p>' +
       '<button class="btn primary" id="go" type="submit" disabled>' + htm("console.appearance.submit") + '</button> <a class="btn" href="/sites">' + htm("console.appearance.back") + '</a></form>';

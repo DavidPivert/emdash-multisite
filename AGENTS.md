@@ -276,7 +276,10 @@ runtime, every query) reads it from ALS/the request db. There is no per-call sit
   into the tenant's own `options`: a tenant admin could then lift their own suspension.
 - **Message helpers vs local names.** User-facing text goes through `src/i18n.ts`, never a literal.
   The console client script (`console-page.ts`) gets its strings as JSON and uses `txt` / `htm` /
-  `txtn`; `auth-ui.ts` imports `t` as `txt`. Both files already have locals named `t`, `tr` and
+  `htmRaw` / `txtn`; `auth-ui.ts` imports `t` as `txt`. `htm` escapes the message and its params
+  (pass raw values, as with `tHtml`); `htmRaw` leaves params as they are and is only for markup the
+  script builds from escaped parts. The i18n self-check fails on an `esc(...)` inside `htm` params
+  or on `htmRaw` fed anything but `list(...)`. Both files already have locals named `t`, `tr` and
   `msg` (looks, timers, the themes response, a status message), which would shadow a helper of the
   same name and break only at run time in the browser. Keep the helper names distinct.
 - **Zsh does not word-split unquoted variables.** `H='-H a -H b'; curl $H` sends nothing; in test
