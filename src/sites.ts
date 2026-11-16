@@ -41,7 +41,16 @@ export interface SitesConfig {
 	postLoginPath?: string;
 	/** Theme preselected in the wizard and used when none is requested. Defaults to the first theme. */
 	defaultTheme?: string;
+	/**
+	 * Extra D1 bindings (shards) that can hold sites, besides the database of the wrapped descriptor. Declare each one in
+	 * the Worker config ahead of demand: D1 bindings are static, so a site can only move to a database that is already
+	 * bound. Today every site still lives in the descriptor's database (see `shardOf`): this only makes the pool reachable.
+	 */
+	shards?: string[];
 }
+
+/** A Worker binding name, as wrangler accepts it. */
+const BINDING_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 export function assertSitesConfig(c: SitesConfig): void {
 	if (!isSiteId(c.primary)) throw new Error(`[multisite] invalid primary site id: ${c.primary}`);
@@ -68,6 +77,23 @@ export function assertSitesConfig(c: SitesConfig): void {
 	for (const [host, id] of Object.entries(c.hosts ?? {})) {
 		if (!isSiteId(id)) throw new Error(`[multisite] invalid site id for ${host}: ${id}`);
 	}
+	if (c.shards !== undefined) {
+		if (!Array.isArray(c.shards) || !c.shards.every((b) => typeof b === "string" && BINDING_NAME.test(b))) {
+			throw new Error("[multisite] shards must be D1 binding names like DB_SHARD_1");
+		}
+		if (new Set(c.shards).size !== c.shards.length) throw new Error("[multisite] shards lists a binding twice");
+	}
+}
+
+/**
+ * The shard binding that holds `site`'s tables, or `undefined` for the database of the wrapped descriptor.
+ * The primary site always lives there.
+ *
+ * ponytail: no assignment yet, so every site lives in the descriptor's database. Upgrade path: read the
+ * site's shard from its site record, written once when the site is created.
+ */
+export function shardOf(_site: string, _c: SitesConfig): string | undefined {
+	return undefined;
 }
 
 /**

@@ -74,10 +74,10 @@ EmDash's modules in the *build output* via Vite.
 | File | Role |
 | --- | --- |
 | `src/index.ts` | `withSites(inner, sites)` — the DB descriptor wrapper (wire 1). Exports `resolveSite`, `runAsSite`, `SitesConfig`. |
-| `src/sites.ts` | `SitesConfig` ({primary, hosts?, wildcard?}), `resolveSite(hostname)`, `assertSitesConfig`. |
+| `src/sites.ts` | `SitesConfig` ({primary, hosts?, wildcard?}), `resolveSite(hostname)`, `assertSitesConfig`, `shardOf(site)` (site → shard binding; `undefined` = main database). |
 | `src/rewrite.ts` | The SQL text rewriter: `rewriteSql`, `rewriteParams`, `translateRows`, `isSiteTable`, `isSiteId`, `suffixFor`. |
 | `src/dialect.ts` | `siteDialect()` wraps a Kysely Dialect; `runAsSite`/`currentSite` (ALS on globalThis); shared inner driver. |
-| `src/runtime.ts` | `makeRuntime(createInner)` builds the `createDialect`/`createRequestScopedDb` pair a DB descriptor entrypoint needs. |
+| `src/runtime.ts` | `makeRuntime(createInner)` builds the `createDialect`/`createRequestScopedDb` pair a DB descriptor entrypoint needs. Keeps one inner dialect per shard binding; the per-request Kysely is built over the site's shard (`shardOf` in `sites.ts`, the main database for every site today). The singleton (`createDialect`) always uses the main database. |
 | `src/db/d1.ts`, `src/db/sqlite.ts` | The wrapped adapter entrypoints EmDash loads (one per inner adapter). |
 | `src/scope.ts` | `siteScoped()` / `siteGlobal()` + the globalThis `scopeState()` (primary, inner dialect, activeSite, siteOfDb, holders, slots). |
 | `src/vite.ts` | `multisiteCaches()` Vite plugin + the three cache key lists + the fail-closed patcher. |
@@ -90,6 +90,7 @@ EmDash's modules in the *build output* via Vite.
 | `scripts/caches.selfcheck.ts` | Cache tripwire: scans `emdash` + all `@emdash-cms/*` for unclassified/reshaped caches. |
 | `scripts/orgs.selfcheck.ts` | Slug validation + org-response parsing (no deps). |
 | `scripts/i18n.selfcheck.ts` | Catalog helpers, plural pairs, and every key used in `src/` exists / every message is used. |
+| `scripts/shards.selfcheck.ts` | Shard pool: `shards` validation, one dialect per binding, a site reads only its shard, unknown binding fails closed. |
 
 ## How a site selects its "active site" (subtle, read this)
 
@@ -299,6 +300,7 @@ Run with Node ≥ 22.18:
 ```
 node --no-warnings scripts/caches.selfcheck.ts <path-to-a-consuming-site>/node_modules   # cache tripwire
 node --no-warnings scripts/orgs.selfcheck.ts                                             # slug/parse
+node --no-warnings scripts/shards.selfcheck.ts                                           # shard pool routing
 node --no-warnings scripts/selfcheck.ts    # migrations+repos oracle (run from/with a site that has `emdash` installed)
 ```
 Then build a consuming site and smoke-test two hostnames mapping to two sites (titles must not

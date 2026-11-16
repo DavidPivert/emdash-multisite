@@ -24,6 +24,12 @@ export function withSites(inner: DatabaseDescriptor, sites: SitesConfig): Databa
 	if (!entrypoint) {
 		throw new Error(`[multisite] unsupported database adapter: ${inner.entrypoint}`);
 	}
+	if (sites.shards?.length) {
+		// A shard is another D1 binding: the Node/SQLite adapter has no binding to swap.
+		if (inner.entrypoint !== "@emdash-cms/cloudflare/db/d1") throw new Error("[multisite] shards need the d1() adapter");
+		const own = (inner.config as { binding?: string } | undefined)?.binding;
+		if (own && sites.shards.includes(own)) throw new Error(`[multisite] shards must not list the main binding ${own}`);
+	}
 	return {
 		entrypoint,
 		config: { inner: inner.config, sites },
